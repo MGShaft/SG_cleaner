@@ -5,35 +5,109 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
-      - name: Create full project
+          
+      - name: Create FULL Android Project
         run: |
-          MAIN=$(find . -name "*.kt" | head -1)
-          mkdir -p app/src/main/java/com/saintguillaume/cleaner
-          cp "$MAIN" app/src/main/java/com/saintguillaume/cleaner/MainActivity.kt || true
-          echo "include ':app'" > settings.gradle
-          cat > app/build.gradle <<'EOF'
-          plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
-          android { namespace 'com.saintguillaume.cleaner'; compileSdk 34; defaultConfig { applicationId "com.saintguillaume.cleaner"; minSdk 24; targetSdk 34; versionCode 1; versionName "2.0" }; buildTypes { release { minifyEnabled false } }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }; kotlinOptions { jvmTarget = '17' } }
-          dependencies { implementation 'androidx.core:core-ktx:1.12.0'; implementation 'androidx.activity:activity-compose:1.8.2'; implementation 'androidx.compose.ui:ui:1.5.8'; implementation 'androidx.compose.material3:material3:1.1.2' }
+          cat > settings.gradle <<'EOF'
+          include ':app'
           EOF
+          
           cat > build.gradle <<'EOF'
           plugins { id 'com.android.application' version '8.2.2' apply false; id 'org.jetbrains.kotlin.android' version '1.9.22' apply false }
           EOF
+          
+          mkdir -p app/src/main/java/com/saintguillaume/cleaner
+          
+          cat > app/src/main/java/com/saintguillaume/cleaner/MainActivity.kt <<'KOT'
+          package com.saintguillaume.cleaner
+          import android.os.Bundle
+          import androidx.activity.ComponentActivity
+          import androidx.activity.compose.setContent
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Alignment
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.unit.dp
+          import androidx.compose.ui.graphics.Color
+          
+          class MainActivity : ComponentActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContent {
+                      MaterialTheme {
+                          var text by remember { mutableStateOf("SG Cleaner Prêt !") }
+                          Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF0F172A)) {
+                              Column(modifier = Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                                  Text(text, color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                                  Spacer(modifier = Modifier.height(20.dp))
+                                  Button(onClick = { text = "Nettoyage... 100% Clean!" }) {
+                                      Text("Lancer Nettoyage")
+                                  }
+                                  Spacer(modifier = Modifier.height(12.dp))
+                                  Text("Made by Saint Guillaume", color = Color.Gray)
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+          KOT
+          
+          cat > app/build.gradle <<'EOF'
+          plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
+          android {
+              namespace 'com.saintguillaume.cleaner'
+              compileSdk 34
+              defaultConfig { applicationId "com.saintguillaume.cleaner"; minSdk 24; targetSdk 34; versionCode 3; versionName "3.0" }
+              buildTypes { release { minifyEnabled false } }
+              compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+              kotlinOptions { jvmTarget = '17' }
+              buildFeatures { compose true }
+              composeOptions { kotlinCompilerExtensionVersion '1.5.8' }
+          }
+          dependencies {
+              implementation 'androidx.core:core-ktx:1.12.0'
+              implementation 'androidx.activity:activity-compose:1.8.2'
+              implementation 'androidx.compose.ui:ui:1.5.8'
+              implementation 'androidx.compose.material3:material3:1.1.2'
+              implementation 'androidx.compose.foundation:foundation:1.5.8'
+              implementation 'androidx.compose.runtime:runtime:1.5.8'
+          }
+          EOF
+          
           mkdir -p app/src/main
           cat > app/src/main/AndroidManifest.xml <<'EOF'
-          <?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:allowBackup="true" android:label="SG Cleaner"><activity android:name=".MainActivity" android:exported="true" android:theme="@android:style/Theme.NoTitleBar"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application android:allowBackup="true" android:label="SG Cleaner">
+                  <activity android:name=".MainActivity" android:exported="true" android:theme="@android:style/Theme.NoTitleBar">
+                      <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+                  </activity>
+              </application>
+          </manifest>
           EOF
+          
+          cat > app/src/main/res/values/themes.xml <<'EOF' 2>/dev/null || true
+          EOF
+          
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-      - uses: gradle/gradle-build-action@v3
+          mkdir -p app/src/main/res/values
+          echo '<resources></resources>' > app/src/main/res/values/strings.xml
+          
+      - name: Build APK
+        uses: gradle/gradle-build-action@v3
         with:
           arguments: assembleDebug
           gradle-version: 8.5
-      - uses: actions/upload-artifact@v4
+          
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: SG-Cleaner-APK
           path: app/build/outputs/apk/debug/app-debug.apk
