@@ -20,17 +20,72 @@ jobs:
         with:
           gradle-version: 8.5
 
-      - name: Create project files
+      - name: Create project V10 SUPPRIME VRAI
         run: |
           mkdir -p app/src/main/java/com/saintguillaume/cleaner
           mkdir -p app/src/main/res/values
           echo "include ':app'" > settings.gradle
           echo "plugins { id 'com.android.application' version '8.2.2' apply false; id 'org.jetbrains.kotlin.android' version '1.9.22' apply false }" > build.gradle
-          echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:label="SG Cleaner"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
-          echo '<resources><string name="app_name">SG Cleaner</string></resources>' > app/src/main/res/values/strings.xml
-          echo "plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' } android { namespace 'com.saintguillaume.cleaner'; compileSdk 34; defaultConfig { applicationId \"com.saintguillaume.cleaner\"; minSdk 24; targetSdk 34; versionCode 9; versionName \"9.0\" }; buildTypes { release { minifyEnabled false } }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } } dependencies { implementation 'androidx.core:core-ktx:1.12.0'; implementation 'androidx.appcompat:appcompat:1.6.1' }" > app/build.gradle
-          echo "package com.saintguillaume.cleaner; import android.os.Bundle; import android.widget.TextView; import androidx.appcompat.app.AppCompatActivity; public class MainActivity extends AppCompatActivity { protected void onCreate(Bundle b){ super.onCreate(b); TextView tv=new TextView(this); tv.setText(\"SG CLEANER V9 - VICTOIRE CHEF!\"); tv.setTextSize(24); tv.setPadding(40,300,40,40); setContentView(tv); } }" > app/src/main/java/com/saintguillaume/cleaner/MainActivity.kt
-          ls -R
+          echo '<?xml version="1.0" encoding="utf-8"?><manifest xmlns:android="http://schemas.android.com/apk/res/android"><uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/><uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/><uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/><application android:label="SG Cleaner" android:requestLegacyExternalStorage="true"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>' > app/src/main/AndroidManifest.xml
+          echo '<resources><string name="app_name">SG Cleaner FINAL</string></resources>' > app/src/main/res/values/strings.xml
+          echo "plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' } android { namespace 'com.saintguillaume.cleaner'; compileSdk 34; defaultConfig { applicationId \"com.saintguillaume.cleaner\"; minSdk 24; targetSdk 34; versionCode 10; versionName \"10.0 FINAL\" }; buildTypes { release { minifyEnabled false } }; compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 } } dependencies { implementation 'androidx.core:core-ktx:1.12.0'; implementation 'androidx.appcompat:appcompat:1.6.1' }" > app/build.gradle
+          cat > app/src/main/java/com/saintguillaume/cleaner/MainActivity.kt <<'KT'
+          package com.saintguillaume.cleaner
+          import android.content.Intent
+          import android.net.Uri
+          import android.os.Build
+          import android.os.Bundle
+          import android.os.Environment
+          import android.provider.Settings
+          import android.widget.*
+          import androidx.appcompat.app.AppCompatActivity
+          import java.io.File
+          class MainActivity : AppCompatActivity() {
+            lateinit var txtLog: TextView
+            var totalFound = 0L
+            var filesToDelete = mutableListOf<File>()
+            override fun onCreate(savedInstanceState: Bundle?) {
+              super.onCreate(savedInstanceState)
+              val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(40,80,40,40) }
+              val title = TextView(this).apply { text = "SG CLEANER V10\nSUPPRESSION REELLE\nSaint Guillaume"; textSize = 20f }
+              txtLog = TextView(this).apply { text = "1-Autoriser acces\n2-Scanner\n3-Supprimer TOUT"; textSize = 15f }
+              val btnPerm = Button(this).apply { text = "1 - AUTORISER" }
+              val btnScan = Button(this).apply { text = "2 - SCANNER" }
+              val btnClean = Button(this).apply { text = "3 - SUPPRIMER TOUT"; isEnabled = false }
+              layout.addView(title); layout.addView(btnPerm); layout.addView(btnScan); layout.addView(btnClean); layout.addView(txtLog)
+              setContentView(layout)
+              btnPerm.setOnClickListener {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                  if (!Environment.isExternalStorageManager()) {
+                    startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName")))
+                  }
+                }
+              }
+              btnScan.setOnClickListener {
+                val base = Environment.getExternalStorageDirectory().toString()
+                val paths = listOf("/WhatsApp/Media/.Statuses","/WhatsApp/Media/WhatsApp Images","/WhatsApp/Media/WhatsApp Images/Sent","/WhatsApp/Media/WhatsApp Video","/WhatsApp/Media/WhatsApp Video/Sent","/Telegram/Telegram Images","/Telegram/Telegram Video","/DCIM/.thumbnails")
+                filesToDelete.clear(); totalFound = 0; var report = ""; var count = 0
+                for (p in paths) {
+                  val f = File(base + p)
+                  if (f.exists()) {
+                    val all = f.walkTopDown().filter { it.isFile }.toList()
+                    totalFound += all.sumOf { it.length() }; count += all.size; filesToDelete.addAll(all)
+                    report += "\n${p.split("/").last()}: ${all.size} fichiers - ${all.sumOf { it.length() }/1024/1024} MB"
+                  }
+                }
+                txtLog.text = "TROUVE: $count fichiers - ${totalFound/1024/1024} MB $report"
+                btnClean.isEnabled = count > 0
+              }
+              btnClean.setOnClickListener {
+                var del = 0; var freed = 0L
+                for (file in filesToDelete) { try { val s = file.length(); if (file.delete()) { del++; freed += s } } catch (e: Exception) {} }
+                Toast.makeText(this, "SUPPRIME $del fichiers - ${freed/1024/1024} MB", Toast.LENGTH_LONG).show()
+                txtLog.text = "VICTOIRE CHEF ! $del supprimes - ${freed/1024/1024} MB liberes"
+                btnClean.isEnabled = false
+              }
+            }
+          }
+          KT
 
       - name: Build APK
         run: gradle assembleDebug --stacktrace
@@ -38,5 +93,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SG-Cleaner-APK
+          name: SG-Cleaner-APK-FINAL-V10
           path: app/build/outputs/apk/debug/app-debug.apk
